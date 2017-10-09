@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="57px" height="42px" viewBox="0 0 57 42" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <title>share</title>
+    <description>Created with Sketch (http://www.bohemiancoding.com/sketch)</description>
+    <defs>
+        <linearGradient x1="0%" y1="3.35344587%" x2="83.4019252%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#36A3DC" offset="0%"></stop>
+            <stop stop-color="#59B9EB" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="share" sketch:type="MSArtboardGroup" fill="url(#linearGradient-1)">
+            <path d="M28.1545658,23.9929536 C28.1545658,23.9929536 26.1664555,23.9929536 26.1664555,25.9894304 L26.1664555,37 L3,20 L26.1664555,3 L26.1664555,14.0105696 C26.1664555,16.0070464 28.1545658,16.0070464 28.1545658,16.0070464 C28.1545658,16.0070464 49.0297242,15.1755138 54,36.1385203 C54,36.1385203 44.0594484,23.9929536 28.1545658,23.9929536 M28,14 L28,1 C28,0.448 27.552,0 27,0 C26.779,0 26.586,0.086 26.42,0.207 L26.41,0.192 L0.41,19.192 L0.42,19.207 C0.172,19.389 0,19.669 0,20 C0,20.332 0.172,20.611 0.42,20.793 L0.41,20.808 L26.41,39.808 L26.42,39.793 C26.586,39.914 26.779,40 27,40 C27.552,40 28,39.553 28,39 L28,26 C47,26 56,42 56,42 C56,14 28,14 28,14" id="Fill-30" sketch:type="MSShapeGroup"></path>
+        </g>
+    </g>
+</svg>

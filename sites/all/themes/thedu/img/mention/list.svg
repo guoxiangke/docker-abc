@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="56px" height="43px" viewBox="0 0 56 43" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <title>list</title>
+    <description>Created with Sketch (http://www.bohemiancoding.com/sketch)</description>
+    <defs>
+        <linearGradient x1="0%" y1="3.35344587%" x2="83.4019252%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#36A3DC" offset="0%"></stop>
+            <stop stop-color="#59B9EB" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="list" sketch:type="MSArtboardGroup" fill="url(#linearGradient-1)">
+            <path d="M6,0 L5,4 L0,4 L4,7 L2,11 L6,9 L10,11 L8,7 L12,4 L7,4 L6,0 Z M55,37 L17,37 C16.447,37 16,37.448 16,38 C16,38.553 16.447,39 17,39 L55,39 C55.553,39 56,38.553 56,38 C56,37.448 55.553,37 55,37 L55,37 Z M55,21 L17,21 C16.447,21 16,21.448 16,22 C16,22.553 16.447,23 17,23 L55,23 C55.553,23 56,22.553 56,22 C56,21.448 55.553,21 55,21 L55,21 Z M17,7 L55,7 C55.553,7 56,6.553 56,6 C56,5.448 55.553,5 55,5 L17,5 C16.447,5 16,5.448 16,6 C16,6.553 16.447,7 17,7 L17,7 Z M7,36 L6,32 L5,36 L0,36 L4,39 L2,43 L6,41 L10,43 L8,39 L12,36 L7,36 Z M6,16 L5,20 L0,20 L4,23 L2,27 L6,25 L10,27 L8,23 L12,20 L7,20 L6,16 Z" id="Fill-70" sketch:type="MSShapeGroup"></path>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,6 @@
+name = edusoho
+core = 7.x
+
+description = edusoho.
+dependencies[] = userpoints
+dependencies[] = efq_extra_field

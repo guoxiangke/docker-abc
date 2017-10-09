@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="56px" height="28px" viewBox="0 0 56 28" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <title>Slice 1</title>
+    <description>Created with Sketch (http://www.bohemiancoding.com/sketch)</description>
+    <defs>
+        <linearGradient x1="6.62144252%" y1="16.6503906%" x2="72.6327079%" y2="95.9647042%" id="linearGradient-1">
+            <stop stop-color="#36A3DC" offset="0%"></stop>
+            <stop stop-color="#59B9EB" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <path d="M38,9 L42,9 L42,26 L38,26 L38,9 Z M36,28 L44,28 L44,7 L36,7 L36,28 Z M26,19 L30,19 L30,26 L26,26 L26,19 Z M24,28 L32,28 L32,17 L24,17 L24,28 Z M54,26 L50,26 L50,2 L54,2 L54,26 Z M48,28 L56,28 L56,0 L48,0 L48,28 Z M14,5 L18,5 L18,26 L14,26 L14,5 Z M12,28 L20,28 L20,3 L12,3 L12,28 Z M2,16 L6,16 L6,26 L2,26 L2,16 Z M0,28 L8,28 L8,14 L0,14 L0,28 Z" id="Fill-374" fill="url(#linearGradient-1)" sketch:type="MSShapeGroup"></path>
+    </g>
+</svg>

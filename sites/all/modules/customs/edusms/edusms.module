@@ -1,0 +1,211 @@
+<?php
+/**
+* 在PHP 5.5.17 中测试通过。
+* 默认用通用接口(send)发送，若需使用模板接口(tpl_send),请自行将代码注释去掉。
+*/
+/**
+ * Implements hook_menu().
+ */
+function edusms_menu() {
+  $items = array();
+  $items['user/validate_phone'] = array(
+    'access callback' => '_validate_phone_access',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_validate_phone_form'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+function _validate_phone_access(){
+  if(!user_is_logged_in()) return FALSE;
+  global $user;
+  $user = user_load($user->uid);
+  if(isset($user->data['validated'])&&$user->data['validated']==1) return FALSE;
+  return TRUE;
+}
+function _validate_phone_form($form){
+  global $user;
+  $user = user_load($user->uid);
+  $telephone = '';
+  if(isset($user->field_telphone[LANGUAGE_NONE][0]['value']))
+    $telephone = $user->field_telphone[LANGUAGE_NONE][0]['value'];
+  $form['telephone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('telephone'),
+    '#attributes' => array('placeholder'=>t('telephone')),
+    '#default_value' => $telephone,
+    '#required' => true,
+  );
+  $form['submit_code'] = array(
+    '#type' => 'submit',
+    '#value' => '发送验证码',
+    '#prefix' => '<div id="box">',
+    '#suffix' => '</div>',
+    '#ajax' => array(
+      'callback' => '_validate_phone_form_sendsms_ajax_callback',
+      'wrapper' => 'box',
+    ),
+  );
+  $form['code'] = array(
+    '#type' => 'textfield',
+    '#title' => t('code'),
+    '#attributes' => array('placeholder'=>'验证码')
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Submit',
+  );
+
+  $form['#attached']['js'] = array(
+    drupal_get_path('theme', 'thedu') . '/js/page-phone-validate.js',
+  );
+
+  return $form;
+}
+
+function _validate_phone_form_sendsms_ajax_callback($form, &$form_state) {
+  global $user;
+  $name = $user->name;
+  $company = 'ABC中国';
+  $code = rand(6666, 8888);
+  $tpl_id = 3;
+  $mobile = $form_state['values']['telephone'];
+  //【#company#】亲爱的#name#，您的验证码是#code#。如非本人操作，请忽略本短信
+  $tpl_value = "#name#=".$name."#company#=".$company."&#code#=".$code;
+  $return = json_decode(tpl_send_sms($tpl_id,$tpl_value,$mobile));
+
+  $element = $form['submit_code'];
+  if($return->code == 0){//已发送
+    user_save($user, array(
+      'data' => array('validated'=>2,'validated_code'=>$code,'mobile'=>$mobile),
+      )
+    );
+    // dpm($code);
+    // In most cases, it is recomended that you put this logic in form generation
+    // rather than the callback. Submit driven forms are an exception, because
+    // you may not want to return the form at all.
+    
+    // $element['#disabled'] = TRUE;
+    $element['#attributes'] = array('disabled'=>t('disabled'));
+    $element['#value'] = "发送成功！";
+   
+  }else{
+    watchdog('edusms', '<pre>'.print_r($return,true), array(), WATCHDOG_ERROR, 'link');
+    $element['#prefix'] = '<div class="alert alert-block alert-error"><p>发送失败！</p>';
+    $element['#suffix'] = '</div>';
+    $element['#value'] = "重新发送";
+  }
+  return $element; 
+  
+}
+
+function _validate_phone_form_submit($form, &$form_state){
+  global $user;
+  $code = $form_state['values']['code'];
+  $user = user_load($user->uid);
+  if($user->data['validated_code'] == $code){
+    $user->field_telphone[LANGUAGE_NONE][0]['value'] = $user->data['mobile'];
+    user_save($user, array(
+      'data' => array('validated'=>1),
+      )
+    );
+    drupal_goto();
+  }else{
+    drupal_set_message('验证码不正确', 'error', FALSE);
+  }
+  
+}
+// //通用接口发送样例
+// $apikey = "f00296af23b8d31e750d4fec9e3b58ef"; //请用自己的apikey代替
+// $mobile = "13716587629"; //请用自己的手机号代替
+// $text="【云片网】您的验证码是1234";
+// // echo send_sms($apikey,$text,$mobile);
+
+//模板接口样例（不推荐。需要测试请将注释去掉。)
+/* 以下代码块已被注释
+    $apikey = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; //请用自己的apikey代替
+    $mobile = "xxxxxxxxxxx"; //请用自己的手机号代替
+    $tpl_id = 1; //对应默认模板 【#company#】您的验证码是#code#
+    $tpl_value = "#company#=云片网&#code#=1234";
+    echo tpl_send_sms($apikey,$tpl_id, $tpl_value, $mobile);
+*/
+function edusms_send($name, $mobile, $code, $company='ABC中国'){
+    $tpl_id = 3; //【#company#】亲爱的#name#，您的验证码是#code#。如非本人操作，请忽略本短信
+    $tpl_value = "#name#=".$name."#company#=".$company."&#code#=".$code;
+    return tpl_send_sms($tpl_id,$tpl_value,$mobile);
+    // if code = 0 sucess!
+    //if code!=0 msg!
+}
+
+/**
+ * Implements hook_user_login().
+ */
+function edusms_user_login(&$edit, $account){
+  if(in_array('student', array_values($account->roles))||in_array('agency', array_values($account->roles))){
+    global $user;
+    $user = user_load($user->uid);
+    if(isset($user->data['validated']) && $user->data['validated']==1){
+      //验证成功！do nothing!!！
+    }elseif(!isset($user->data['validated'])){
+      drupal_goto('user/validate_phone');
+    }
+  }
+}
+
+/**
+* 通用接口发短信
+* apikey 为云片分配的apikey
+* text 为短信内容
+* mobile 为接受短信的手机号
+*/
+function send_sms($text, $mobile,$apikey="f00296af23b8d31e750d4fec9e3b58ef"){
+    $url="http://yunpian.com/v1/sms/send.json";
+    $encoded_text = urlencode("$text");
+    $mobile = urlencode("$mobile");
+    $post_string="apikey=$apikey&text=$encoded_text&mobile=$mobile";
+    return sock_post($url, $post_string);
+}
+
+/**
+* 模板接口发短信
+* apikey 为云片分配的apikey
+* tpl_id 为模板id
+* tpl_value 为模板值
+* mobile 为接受短信的手机号
+*/
+function tpl_send_sms($tpl_id, $tpl_value, $mobile, $apikey='f00296af23b8d31e750d4fec9e3b58ef'){
+    $url="http://yunpian.com/v1/sms/tpl_send.json";
+    $encoded_tpl_value = urlencode("$tpl_value");  //tpl_value需整体转义
+    $mobile = urlencode("$mobile");
+    $post_string="apikey=$apikey&tpl_id=$tpl_id&tpl_value=$encoded_tpl_value&mobile=$mobile";
+    return sock_post($url, $post_string);
+}
+
+/**
+* url 为服务的url地址
+* query 为请求串
+*/
+function sock_post($url,$query){
+    $data = "";
+    $info=parse_url($url);
+    $fp=fsockopen($info["host"],80,$errno,$errstr,30);
+    if(!$fp){
+        return $data;
+    }
+    $head="POST ".$info['path']." HTTP/1.0\r\n";
+    $head.="Host: ".$info['host']."\r\n";
+    $head.="Referer: http://".$info['host'].$info['path']."\r\n";
+    $head.="Content-type: application/x-www-form-urlencoded\r\n";
+    $head.="Content-Length: ".strlen(trim($query))."\r\n";
+    $head.="\r\n";
+    $head.=trim($query);
+    $write=fputs($fp,$head);
+    $header = "";
+    while ($str = trim(fgets($fp,4096))) {
+        $header.=$str;
+    }
+    while (!feof($fp)) {
+        $data .= fgets($fp,4096);
+    }
+    return $data;
+}

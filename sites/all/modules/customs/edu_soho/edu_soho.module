@@ -1,0 +1,726 @@
+<?php
+/**
+ * Implements hook_menu().
+ */
+function edu_soho_menu() {
+  $items = array();
+  $items['create/class_record'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => '_ajax_create_class_record',
+    'access callback' => TRUE,
+  );
+  //orderID/today yesterday tomorrow AOL!
+  $items['flag/class_record_aol/%/%'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => '_ajax_flag_class_record_aol',
+    'page arguments' => array(2, 3),
+    'access callback' => TRUE,
+  );
+  //orderID/today yesterday tomorrow AOL!
+  $items['order_aol/%/%'] = array(
+    'type' => MENU_CALLBACK,
+    'page callback' => '_ajax_order_aol',
+    'page arguments' => array(2, 3),
+    'access callback' => TRUE,
+  );
+  $items['user/dashboard'] = array(
+    'title' => t('Dashboard'),
+    'access callback' => 'user_is_logged_in',
+    'page callback' => 'page_edu_drashboard',
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'main-menu',
+  );
+  return $items;
+}
+/**
+ * Implements hook_admin_paths_alter().
+ */
+function edu_soho_admin_paths_alter(&$paths) {
+  $paths['node/add/study-record'] = FALSE;
+  $paths['node/add/order'] = FALSE;
+  $paths['node/%/edit'] = FALSE;
+}
+function _ajax_order_aol($orderID,$dayIndex){
+  $time = time();
+  //今天或明天
+  //1.检查是否已经生成了节点？
+  //2.若无，=>update order datalist exclude this date
+  //3.若有，delete it! then 2.
+  switch ($dayIndex) {
+    case 'tomorrow':
+      $time += 86400;
+      break;
+    case 'yesterday':
+      $time -= 86400;
+      break;
+
+    default:
+        $time = time();
+      break;
+  }
+  $class_record_node = edu_get_study_records_by_order($orderID,$time);
+  if($class_record_node){
+    $entity_id = $class_record_node[0]->nid;
+    // node_delete($nid);
+    $res = flag('flag', 'ask_for_leave', $entity_id);
+    if($res) {
+      drupal_set_message('请假操作成功！', 'sucess', FALSE);
+    }else{
+      drupal_set_message('请假操作失败！', 'error', FALSE);
+    }
+    return '';
+  }
+  // update order datalist exclude this date
+  // $order_node = node_load($orderID);
+
+}
+
+function _ajax_flag_class_record_aol($orderID,$dayIndex){
+  $time = time();
+  //今天或明天
+  //1.检查是否已经生成了节点？
+  //2.若无，则生成节点
+  //3.获取classroomID
+  //4.flag it AOL.
+  switch ($dayIndex) {
+    case 'tomorrow':
+      $time += 86400;
+      break;
+    case 'yesterday':
+      $time -= 86400;
+      break;
+
+    default:
+        $time = time();
+      break;
+  }
+  $class_record_node = edu_get_study_records_by_order($orderID,$time);
+  if($class_record_node){
+    $entity_id = $class_record_node[0]->nid;
+  }else{//若无，则生成节点 TODO
+    $content_type = 'study_record';
+    $order_node = node_load($orderID);
+    $node = new stdClass();
+    $node->type = $content_type;
+    node_object_prepare($node);
+    $node->uid = $order_node->field_student[LANGUAGE_NONE][0]['uid']; //uid of order student!.
+    $node->field_student[LANGUAGE_NONE][0]['uid'] = $node->uid;
+    $node->field_teacher[LANGUAGE_NONE][0]['uid'] =  $order_node->field_teacher[LANGUAGE_NONE][0]['uid'];
+    $node->og_group_ref[LANGUAGE_NONE][0]['target_id'] = $orderID;
+    $plan_hour = date('H:i:s',strtotime($order_node->field_plan_class[LANGUAGE_NONE][0]['value']));
+    $node->field_class_time[LANGUAGE_NONE][0]['value'] = date('Y-m-d',$time).' '.$plan_hour;
+    $node->field_class_time[LANGUAGE_NONE][0]['value2'] = date('Y-m-d',$time).' '.$plan_hour;
+    // dpm($node);
+    // return '';
+    node_save($node);
+    $entity_id = $node->nid;
+  }
+  //then flag it!
+  $res = flag('flag', 'ask_for_leave', $entity_id);
+  // dvm($res,$entity_id); //TODO:ajax
+  if($res) {
+    drupal_set_message('请假操作成功！', 'sucess', FALSE);
+  }else{
+    drupal_set_message('请假操作失败！', 'error', FALSE);
+  }
+  return '';
+}
+/**
+ * stu申请试听
+ */
+function _ajax_create_class_record(){
+  header('Content-Type: application/json');
+  if (empty($_POST['uid'])) {
+    drupal_exit();
+  }
+  if(!empty($_POST['order_id'])){
+    $type = 'study_record';
+    $uid = $_POST['uid'];
+    $order_id = $_POST['order_id'];
+
+    //already has a unpushished class order'will not create!!!
+    if(count(_edu_get_node($type,$uid,0))){
+      $data = array('error'=>1);
+      //'您已经申请过了，我们的老师会尽快与您联系！'
+      print json_encode($data);
+      drupal_exit();
+    }
+    //check userpoints drupal_goto('buy points');
+    if(userpoints_get_current_points()<=0){
+      $data = array('error'=>2);
+      //'您点卡不足，请充值后申请！！'
+      print json_encode($data);
+      drupal_exit();
+    }
+    //试听2个课时，只能创建2个节点！
+    $order_node = node_load($order_id);
+    $counts = count((array)_edu_get_og_content($order_id));
+    if($counts >= $order_node->field_class_hour['und'][0]['value']){
+      $data = array('error'=>3);
+      //'该课程已结束！！'
+      print json_encode($data);
+      drupal_exit();
+    }
+
+    $node = new stdClass(); // We create a new node object
+    $node->type = $type; // Or any other content type you want
+    $account = user_load($uid);
+    $node->title = $account->name." request a Class|申请试听";
+    $node->status = 0;
+    $node->language = LANGUAGE_NONE; // Or any language code if Locale module is enabled. More on this below *
+    node_object_prepare($node); // Set some default values.
+    $node->uid = $uid;
+    $node->field_student[$node->language][0]['uid'] = $uid;
+    $node->field_teacher[$node->language][0]['uid'] = 4;//default teacher
+    $node->og_group_ref[$node->language][0]['target_id'] = $order_id;
+      // dpm($node);
+    if($node = node_submit($node)) { // Prepare node for saving
+        node_save($node);
+        if($node->nid){
+          $data = array(
+            'nid' => $node->nid,
+          );
+        }else{
+          $data = array(
+            'nid' => 0,
+          );
+        }
+    }
+
+    print json_encode($data);
+  }
+
+  drupal_exit();
+}
+/**
+ * Implements hook_init().
+ */
+function edu_soho_init() {
+  global $user;
+  drupal_add_js(array('currentUser' => $user->uid), 'setting');
+  drupal_add_js(drupal_get_path('module', 'edu_soho').'/js/edu_soho.js');
+  // drupal_add_css(drupal_get_path('module', 'edu_soho').'/css/edu_soho.css');
+  //uid = Drupal.settings.currentUser;
+  $GLOBALS['DEBUG'] = TRUE;
+}
+/**
+ * $type string
+ * $account uid/obj
+ */
+function _edu_get_node($type,$uid=NULL,$status=1){
+  if(!isset($uid)){
+    global $user;
+    $uid = $user->uid;
+  }
+  return db_select('node', 'n')
+    ->fields('n',array('nid'))
+    ->condition('type', $type)
+    ->condition('status', $status)
+    ->condition('uid',$uid)
+    ->execute()
+    ->fetchAll();
+}
+/**
+ * 获取学生/老师的所有订单课程
+ * field_student
+ * field_teacher
+ */
+function edu_get_orders($account,$field='field_student'){
+  $query = new EntityFieldQuery();
+
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'order')
+    ->propertyCondition('status', NODE_PUBLISHED)
+    ->fieldCondition($field, 'uid', $account->uid)
+    ->addMetaData('account', user_load(1)); // Run the query as user 1.
+  $res = $query->execute();
+  if(isset($res['node']))
+    return $res['node'];
+  // if($field=='field_agency') return views_get_view_result('nodes','page_agency_order');
+  return array();
+}
+
+// og group contents get programly
+/**
+ * [edu_get_study_records_by_order description]
+ * @param  [type]  $orderId [description]
+ * @param  [type]  $created [description]
+ * @param  integer $limited [description]
+ * @return [array(0=>stdClass('nid'=>1,'node_created'=>1469492995))]           [description]
+ */
+function edu_get_study_records_by_order($orderId,$created=NULL,$limited=1){
+  if($limited==0) $limited = 999999999;
+  // $created = time();
+  if($created){
+    $form = strtotime(date('Y-m-d',$created).' 00:00:00');
+    $to = strtotime(date('Y-m-d',$created).' 23:59:59');
+    $res = db_query("SELECT node.nid AS nid ,node.created AS node_created FROM
+            {node} node
+            LEFT JOIN {og_membership} og_membership ON node.nid = og_membership.etid AND og_membership.entity_type = 'node'
+            WHERE (( (og_membership.gid = '".$orderId."' ) )AND(( (node.type IN  ('study_record')) )))
+            AND (node.created BETWEEN ".$form." AND ".$to.")
+            ORDER BY node_created DESC
+            LIMIT ".$limited." OFFSET 0")->fetchAll();
+  }else{
+    $res = db_query("SELECT node.nid AS nid ,node.created AS node_created FROM
+            {node} node
+            LEFT JOIN {og_membership} og_membership ON node.nid = og_membership.etid AND og_membership.entity_type = 'node'
+            WHERE (( (og_membership.gid = '".$orderId."' ) )AND(( (node.type IN  ('study_record')) )))
+            ORDER BY node_created DESC
+            LIMIT ".$limited." OFFSET 0")->fetchAll();
+  }
+  if(isset($res['0']->nid))
+    return $res;
+  // if($field=='field_agency') return views_get_view_result('nodes','page_agency_record');
+  return array();
+}
+/**
+ * 获取学生/老师的所有课程记录 study_record
+ * field_student
+ * field_teacher
+ * TODO: By Order ID!!!
+ */
+function edu_get_records($account,$field='field_student',$created=NULL){
+  if(is_object($account)) $account = $account->uid;
+
+  //https://www.drupal.org/project/efq_extra_field
+  //http://drupal.stackexchange.com/questions/80889/get-fields-out-of-an-entity-returned-by-entityfieldquery
+  // $query = new EntityFieldQuery();
+  $query = new EntityFieldQueryExtraFields();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'study_record')
+    ->propertyCondition('status', NODE_PUBLISHED)
+    ->fieldCondition($field, 'uid', $account)
+    // ->addExtraField('', 'created','created','node')
+    ->addExtraField('field_class_time', 'value','begin')
+    ->addExtraField('field_class_time', 'value2','end')
+    ->addMetaData('account', user_load(1)); // Run the query as user 1.
+  if($created){
+    $form = strtotime(date('Y-m-d',$created).' 00:00:00');
+    $to = strtotime(date('Y-m-d',$created).' 23:59:59');
+    $query->propertyCondition('created',  array($form, $to), 'BETWEEN');
+    // $query->range(0,1);
+  }
+  // ->addExtraField('field_duration', 'value', 'value')
+  // $query->addExtraField('created', 'created', 'created','node');
+
+  $res = $query->execute();
+  if(isset($res['node']))
+    return $res['node'];
+  // if($field=='field_agency') return views_get_view_result('nodes','page_agency_record');
+  return array();
+}
+//get all user or or all nodes!
+//class=>0
+function _edu_get_og_content($gid,$entity_type='node'){
+  return db_select('og_membership', 'n')
+    ->fields('n',array('etid'))
+    ->condition('gid', $gid)
+    ->condition('entity_type',$entity_type)
+    ->execute()
+    ->fetchAll();
+}
+/**
+已经完成的课时，即flagged finished class record of one order！
+**/
+function edu_get_finished_class($order_id){
+    $classes = _edu_get_og_content($order_id);
+    $flag = flag_get_flag('mark_finished_class');//teacher
+    $return = array();
+    if ($flag) {
+      foreach ($classes as $key => $node) {
+        if($flag->is_flagged($node->etid)){
+            $return[] = $node->etid;
+        }
+      }
+    }
+    return $return;
+}
+/**
+ * Implements hook_node_view().
+ */
+function edu_soho_node_view($node, $view_mode, $langcode) {
+  if($node->type == 'study_record' && $node->status==1 && $view_mode='full'){
+    //teacher 决定是否可以进入房间！
+    $flag = flag_get_flag('mark_finished_class');//
+    if ($flag && $flag->is_flagged($node->nid)) {
+      return;
+    }
+    // drupal_get_js(drupal_get_path('module', 'edu_soho').'/js/open_classroom.js','file');
+    $node->content['#attached']['js'][] = drupal_get_path('module', 'edu_soho').'/js/open_classroom.js';
+    $node->content ['appear'] = array(
+      '#markup' => "<button id='open_classroom' class='btn btn-default btn-lg' data-room='https://appear.in/abc-chinaedu-".$node->nid."' >".t('Open ClassRoom').'</button>',
+      '#weight' => 10,
+      //window.open("https://appear.in/abc-china-edu-'.$node->nid.'","winname","directories=no,titlebar=no,toolbar=no,location=no,status=no,menubar=no,scrollbars=no,resizable=no,width=400,height=350");
+      // '#theme' => 'mymodule_my_additional_field',//var iframe = document.getElementById(\'appear\');
+  // iframe.src = iframe.src; <iframe id="appear" src="https://appear.in/abc-chinaedu-'.$node->nid.'" width="700" height="500" frameborder="0"></iframe>
+    );
+  }
+}
+
+/**
+ * Implements hook_user_insert().
+ * 当新student注册后，自动创建一个“试听”的订单。
+ */
+function edu_soho_user_insert(&$edit, $account, $category) {
+  return;
+  if(in_array('student', $account->roles)){
+    $type = 'order';
+    $node = new stdClass(); // We create a new node object
+    $node->type = $type; // Or any other content type you want
+    $node->title = "试听 | On trial | ".date('ymd');
+    $node->status = 1;
+    $node->language = LANGUAGE_NONE;
+    node_object_prepare($node); // Set some default values.
+    $node->uid = 1; // Or any id you wish
+    $node->field_student[$node->language][0]['uid'] = $account->uid;
+    $node->field_class_hour[$node->language][0]['value'] = 1;//试听2课时
+    $node->field_teacher[$node->language][0]['uid'] = 4;//default teacher
+    $node->group_group[$node->language][0]['value'] = 1;
+    //2015-08-29 00:00:00
+    $node->field_due_date[$node->language][0]['value'] = date('Y-m-d H:i:s');
+    $node->field_due_date[$node->language][0]['value2'] = date('Y-m-d H:i:s',time()+86400*31);
+      // dpm($node);
+    if($node = node_submit($node)) { // Prepare node for saving
+      node_save($node);
+    }
+  }
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function edu_soho_node_access($node, $op, $account) {
+  $type = is_string($node) ? $node : $node->type;
+  if(user_is_anonymous() && $type == 'study_record'){
+        return NODE_ACCESS_DENY;
+  }
+  global $user;
+  if($op == 'view' && $type == 'study_record'){
+    //老师只能看自己学生的study_record 学生也是！
+    if(in_array('teacher', array_values($user->roles))){
+      if($node->field_teacher[LANGUAGE_NONE][0]['uid'] != $user->uid)
+        return NODE_ACCESS_DENY;
+    }
+    if(in_array('student', array_values($user->roles))){
+      if($node->field_student[LANGUAGE_NONE][0]['uid'] != $user->uid)
+        return NODE_ACCESS_DENY;
+    }
+
+  }
+  if($op == 'view' && $type == 'order'){
+    if(in_array('teacher', array_values($user->roles)) || in_array('student', array_values($user->roles))){
+        return NODE_ACCESS_DENY;
+    }
+
+  }
+  if ($op == 'update' && $type == 'study_record') {
+    //允许老师编辑 classroom 上传音频文件
+    if(in_array('teacher', array_values($user->roles))){
+      if($node->field_teacher[LANGUAGE_NONE][0]['uid'] == $user->uid){
+        return NODE_ACCESS_ALLOW;
+      }else {
+        return NODE_ACCESS_DENY;
+      }
+    }
+    //不让学生编辑自己的class_record classroom!
+    if(in_array('student', array_values($user->roles))){
+      return NODE_ACCESS_DENY;
+    }
+  }
+  // Returning nothing from this function would have the same effect.
+  // return NODE_ACCESS_IGNORE;
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function edu_soho_form_alter(&$form, &$form_state, $form_id) {
+  if($form_id == 'study_record_node_form'){
+    $form['og_group_ref']['#attributes']['class'][] = 'hide';
+    // $form['field_student']['#attributes']['class'][] = 'hide';
+    // $form['field_teacher']['#attributes']['class'][] = 'hide';
+    if(isset($_GET['og_group_ref']))
+      $form['og_group_ref']['und'][0]['default']['#default_value'] = $_GET['og_group_ref'];
+    if(isset($_GET['student']))
+    $form['field_student']['und'][0]['uid']['#default_value'] = $_GET['student'];
+    if(isset($_GET['teacher']))
+    $form['field_teacher']['und'][0]['uid']['#default_value'] = $_GET['teacher'];
+    global $user;
+    if(in_array('teacher', array_values($user->roles))){
+      if($form['#node']->field_teacher[LANGUAGE_NONE][0]['uid'] == $user->uid){
+        // return 'NODE_ACCESS_ALLOW';
+        $form['field_student']['#access'] = FALSE;
+        $form['field_teacher']['#access'] = FALSE;
+      }else {
+        // return NODE_ACCESS_DENY;
+      }
+    }
+  }
+  if ($form_id == 'order_node_form') {
+    // array_unshift($form['#validate'], 'order_node_form_date_validate');
+    $form['options']['promote']['#title'] = '订单未完成';
+    $form['options']['sticky']['#title'] = '订单未作废';
+    // dpm($form);
+  }
+
+}
+
+function page_edu_drashboard() {
+  return 'white page!';
+}
+
+/**
+ * Implements hook_field_widget_form_alter().
+ @see date_repeat_field_field_widget_form_alter
+ */
+function edu_soho_field_widget_form_alter(&$element, &$form_state, $context) {
+
+  $field = $context['field'];
+  $instance = $context['instance'];
+  $items = $context['items'];
+  $delta = $context['delta'];
+
+  if (in_array($field['type'], array('date', 'datetime', 'datestamp'))) {
+    if (!empty($field['settings']['repeat'])) {
+      if($element['#field_name'] == 'field_plan_class')
+        array_unshift($element['#element_validate'], '_edu_soho_date_repeat_field_widget_validate');
+    }
+  }
+  // dpm($element);
+}
+
+function _edu_soho_date_repeat_field_widget_validate($element, &$form_state){
+  $delay_dates = $form_state['values']['field_class_delay'][LANGUAGE_NONE];
+  $delay_date_exrule = '';
+  foreach ($delay_dates as $key => $delay_date) {
+    if(isset($delay_date['value'])){
+      if($key != count($delay_dates) -1){
+        $delay_date_exrule .= date('Ymd', strtotime($delay_date['value'].' UTC+8')-86400).'T160000Z,';
+      }else{
+        $delay_date_exrule .= date('Ymd', strtotime($delay_date['value'].' UTC+8')-86400).'T160000Z';
+      }
+    }
+  }
+  $delay_date_exrule = 'EXDATE:'.$delay_date_exrule;
+  $rrule = $form_state['values']['field_plan_class'][LANGUAGE_NONE][0]['rrule'];
+  $rrule = explode("\n", $rrule);
+  $rrule = $rrule['0']."\n".$delay_date_exrule;
+  $form_state['values']['field_plan_class'][LANGUAGE_NONE][0]['rrule'] = $rrule;
+}
+
+/**
+ * Implements hook_views_pre_execute().
+ */
+
+function edu_soho_views_post_execute(&$view) {
+  if ($view->name == 'nodes' && ($view->current_display=='page_agency_record' || $view->current_display=='page_agency_order')) {
+    // dpm($view);
+    global $user;
+    foreach ($view->result as $key => &$record) {
+      $student_uid = $record->field_field_student[0]['raw']['uid'];
+      if(!isset($students[$student_uid])){
+        // dpm($student_uid);
+        $students[$student_uid] = user_load($student_uid);
+      }
+      $student = $students[$student_uid];
+      if(!isset($student->field_agency[LANGUAGE_NONE][0]['uid']) || $student->field_agency[LANGUAGE_NONE][0]['uid'] != $user->uid){
+        unset($view->result[$key]);
+        // dpm($key);
+      }
+    }
+    // dpm($view->result);
+
+    // for answers ,add wrapper for new ajax answer to fill
+    // add js for comments delete use pop modal.
+    //drupal_add_js(drupal_get_path('module', 'druedu_qa') .'/js/delete_popup_comments.js');
+  }
+}
+
+/**
+ * 获取代理的所有学生
+ */
+function edu_get_agencyusers($account){
+  $query = new EntityFieldQuery();
+
+  $query->entityCondition('entity_type', 'user')
+    ->propertyCondition('status', 1)
+    ->fieldCondition('field_agency', 'uid', $account->uid)
+    ->addMetaData('account', user_load(1)); // Run the query as user 1.
+  $res = $query->execute();
+  if(isset($res['user']))
+    return $res['user'];
+  return array();
+}
+
+
+/**
+ * Act on an object being flagged.
+ *
+ * @param $flag
+ *  The flag object.
+ * @param $entity_id
+ *  The id of the entity the flag is on.
+ * @param $account
+ *  The user account performing the action.
+ * @param $flagging_id
+ *  The flagging entity.
+ * 老师标记课时完成后，给代理加分+1
+ */
+function edu_soho_flag_flag($flag, $entity_id, $account, $flagging) {
+  if($flag->name == 'mark_finished_class'){
+    global $user;
+    if(!in_array('teacher', array_values($user->roles))) return;
+    $node = node_load($entity_id);
+    $field_student = $node->field_student[LANGUAGE_NONE][0]['uid'];
+    $account = user_load($field_student);
+    if(isset($account->field_agency[LANGUAGE_NONE][0]['uid'])){
+      $agency_uid = $account->field_agency[LANGUAGE_NONE][0]['uid'];
+      $params = array(
+        'uid' => $agency_uid,
+        'points' => 1,
+        'operation' => 'Insert',
+        'description' => '学生完成课时'.$entity_id,
+      );
+      userpoints_userpointsapi($params);
+    }
+  }
+}
+
+function get_active_order_id($uid){//uid = 3 orderId = 88
+  $type = 'order';
+  $query = db_select('field_data_field_student', 'f');
+  $query->join('node', 'n', 'n.nid = f.entity_id');
+
+  $query->fields('f',array('revision_id'));
+  $query->condition('f.field_student_uid', $uid);
+  //@see hook_form_alter!
+  $query->condition('n.status', '1');
+  $query->condition('n.promote', '1');
+  $query->condition('n.sticky', '1');
+  $query->range(0,1);
+
+  $orderId = $query->execute()->fetchField();
+  return $orderId;
+}
+
+// foreach ($order_users as $key => $orders) {
+//   $order_nid = $order->revision_id;
+//   $student_uid = $order->field_student_uid;
+// }
+function get_all_users_has_order(){
+  $type = 'order';
+  $query = db_select('field_data_field_student', 'f');
+  $query->join('node', 'n', 'n.nid = f.entity_id');
+
+  $query->fields('f',array('entity_id','field_student_uid'));
+  //@see hook_form_alter!
+  $query->condition('n.status', '1');
+  $query->condition('n.promote', '1');
+  $query->condition('n.sticky', '1');
+  // $query->range(0,1);
+  return $query->execute()->fetchAll();
+}
+
+
+function auto_create_class_record($uid,$order_id){
+    // $uid = 3;//foreach student have active orderID uids!
+    //每个user 有且仅有一个活跃orderID
+    // $order_id = get_active_order_id($uid);
+    $type = 'study_record';
+  //2.if no class record today for this user!
+    $results = db_select('node', 'n')
+    ->fields('n',array('nid','created'))
+    ->condition('type', $type)
+    ->condition('status', '1')
+    ->condition('uid',$uid)
+    ->orderBy('created', 'DESC')//ORDER BY created
+    ->range(0,1)//LIMIT to 2 records
+    ->execute()
+    ->fetchAll();
+    if($results){
+      $t = date('Y-m-d');
+      $b = date('Y-m-d',$results[0]->created);
+      if("$t" == "$b"){
+        // watchdog('auto_cr eate_class_record', '今天已经有一个课时存在了！！！', array(), WATCHDOG_NOTICE, 'link');
+        return;
+      }
+      //今天已经有一个课时存在了！！！
+    }
+  //1.check order date plan: if has this date(today)
+    $order_node = node_load($order_id);
+    $dates = $order_node->field_plan_class[LANGUAGE_NONE];
+    $donext = FALSE;
+    foreach ($dates as $key => $value) {
+      if(substr($value['value'], 0,10) == date('Y-m-d')){
+        //setTRUE
+        $donext = TRUE;
+        $field_class_time = $value;
+        break;
+      }
+      continue;
+    }// && date('H') >= date('H',strtotime($field_class_time['value'].' '.$field_class_time['timezone_db']))
+    if($donext){//如果在同一个小时内，则生成！必须提前1小时请假。否则会自动生成classrecord！
+      $node = new stdClass(); // We create a new node object
+      $node->type = $type; // Or any other content type you want
+      // $account = user_load($uid);
+      $node->title = $uid." request a Class|申请试听";
+      $node->status = 1;
+      $node->language = LANGUAGE_NONE; // Or any language code if Locale module is enabled. More on this below *
+      node_object_prepare($node); // Set some default values.
+      $field_teacher_uid = $order_node->field_teacher[$node->language][0]['uid'];
+      $node->uid = $uid;
+      $node->field_student[$node->language][0]['uid'] = $uid;
+      $node->field_teacher[$node->language][0]['uid'] = $field_teacher_uid;
+      $node->field_class_time[$node->language][0]= $field_class_time;
+      $node->og_group_ref[$node->language][0]['target_id'] = $order_id;
+        // dpm($node);
+      if($node = node_submit($node)) { // Prepare node for saving
+        node_save($node);
+        watchdog('edu_soho', 'Auto create class record '.$node->nid.' for uid = '.$uid, array(), WATCHDOG_NOTICE, 'link');
+      }
+    }
+}
+
+/**
+ * Implements hook_cron().
+ https://api.drupal.org/api/drupal/modules!system!system.queue.inc/group/queue/7
+ http://www.tuicool.com/articles/fQfYNj
+ http://getlevelten.com/blog/randall-knutson/cron-queues-processing-large-amounts-data-cron
+ http://jenkins-ci.org/
+ */
+function edu_soho_cron() {
+  $order_users = get_all_users_has_order();
+  foreach ($order_users as $key => $order) {
+    $order_nid = $order->entity_id;
+    $student_uid = $order->field_student_uid;
+    auto_create_class_record($student_uid,$order_nid);
+  }
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function edu_soho_node_update($node) {
+  // if($node->type == 'order')
+  //   drupal_goto('allorders');
+}
+/**
+ * Implements hook_user_presave().
+ */
+function edu_soho_user_presave(&$edit, $account, $category) {
+  if(isset($edit['status'])&&$edit['status']!=$account->status) return;
+  if(strpos($account->mail,'@qq.com')==false || (isset($edit['mail']) && strpos($edit['mail'],'@qq.com')==false)){
+    $account->status=0;
+    $edit['status']=0;
+  }
+}
+/**
+ * Implements hook_user_login().
+ */
+function edu_soho_user_login(&$edit, $account) {
+  if(date('z')<=281 && in_array('teacher', $account->roles)){
+    drupal_set_message(('Attention please! After 2017/10/01, if the ClassRecord wasn\'t marked finished, the class won\'t be count to pay! & Recods must be fullfilled after class,Upload Class recordes Mp3 will won you bonus!'), 'warning', FALSE);
+    drupal_set_message(('Plz only mark it after the class finished! & we have AOL system for Admin to record,so don\'t mark finished if noticed AOL!'), 'status', FALSE);
+  }
+}

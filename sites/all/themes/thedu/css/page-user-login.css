@@ -1,0 +1,76 @@
+html,body,.main-container {
+    height:100%;
+}
+.footer {
+	padding-top: 10px;
+}
+.btn-primary{
+    color: #ffffff;
+    background-color: #f07d00;
+    border-color: #d77000;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.open > .dropdown-toggle.btn-primary {
+    color: #ffffff;
+    background-color: #bd6200;
+    border-color: #995000;
+}
+.form-required{
+  display: none;
+}
+#user-login label{
+  color: white;
+  font-weight: 300;
+  line-height: 34px;
+  display: inline-block;
+  text-align: right;
+  width: 25%;
+}
+#user-login input{
+  display: inline-block;
+  width: 50%;
+}
+#user-login input{
+  float: right;
+  margin-right: 20%;
+}
+#user-login #edit-pass{
+  /*margin-left: 80px;*/
+}
+#user-login .form-submit{
+  margin-left: 30%;
+  width: 50%;
+}
+#block-system-main{
+  padding-top: 56px;
+}
+header.navbar-fixed-top{
+	background-color: #222;
+}
+#navbar .container a,
+header.navbar-default .navbar-nav > li > a{
+	color: #FFF;
+}
+#navbar .container a:hover{
+	color: #bd6200;
+}
+/* Small devices (tablets, 768px and up) */
+@media only screen and (max-width : 768px) {
+	#user-login label{
+		display: none;
+	}
+	#user-login input{
+		margin-bottom: 30px;
+		margin-right: 0;
+		display: block;
+		float: none;
+	}
+	#user-login input,
+	#user-login .form-submit {
+    margin-left: 70%;
+    width: 30%;
+	}
+}

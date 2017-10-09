@@ -1,0 +1,45 @@
+<?php
+/**
+ * Implements hook_menu_alter().
+ */
+function zsoho_menu_alter(&$items) {
+  $items['create/student'] = $items['admin/people/p2rp-create/student'];
+  $items['user/%user/edit']['access callback'] = 'user_edit_access_zsoho';
+}
+
+/**
+ * Access callback for user account editing.
+ * agncey edit $account!!
+ * we give agency 'administer users' but stict to his student!!!
+ * 禁止agency用户，编辑修改不是他的student和teacher！
+ */
+function user_edit_access_zsoho($account) {
+	global $user;
+	if($user->uid != 1 && ($user->uid != $account->uid) && in_array('agency',$user->roles)){
+		if(isset($account->field_agency[LANGUAGE_NONE][0]['uid'])){
+			if($account->field_agency[LANGUAGE_NONE][0]['uid']!=$GLOBALS['user']->uid){
+				return FALSE;
+			}
+		}else{
+			return FALSE;
+		}
+	}
+  return (($GLOBALS['user']->uid == $account->uid) || user_access('administer users')) && $account->uid > 0;
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function zsoho_form_alter(&$form, &$form_state, $form_id) {
+	if($form_id == 'user_login'){
+		// dpm($form);
+		$form['name']['#title'] = t('Username (Email)');
+		$form['name']['#attributes']['placeholder'] = t('Username (Email)');
+		$form['pass']['#attributes']['placeholder'] = t('Password');
+		$form['actions']['submit']['#attributes']['class'][] = 'btn-primary';
+		$form['actions']['submit']['#attributes']['class'][] = 'btn-lg';
+	}
+	if($form_id == 'user_register_form'){
+		$form['account']['pass']['#weight']= 0;
+	}
+}
