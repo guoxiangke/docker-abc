@@ -1,0 +1,14 @@
+diff --git i/includes/file.inc w/includes/file.inc
+index fa7f5eb..c973796 100644
+--- i/includes/file.inc
++++ w/includes/file.inc
+@@ -611,7 +611,8 @@ function file_load($fid) {
+  */
+ function file_save(stdClass $file) {
+   $file->timestamp = REQUEST_TIME;
+-  $file->filesize = filesize($file->uri);
++  if(!$file->filesize)
++    $file->filesize = filesize($file->uri);
+ 
+   // Load the stored entity, if any.
+   if (!empty($file->fid) && !isset($file->original)) {
