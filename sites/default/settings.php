@@ -582,5 +582,5 @@ $conf['404_fast_html'] = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
 // https://stackoverflow.com/questions/36222254/drupal-mixed-content-error-when-using-ssl-certificate
 $conf['reverse_proxy'] = TRUE;
 $base_url = 'https://abc.vultr.yongbuzhixi.com';
-$conf['reverse_proxy_addresses'] = array('172.17.0.251');
+$conf['reverse_proxy_addresses'] = array('172.17.0.7');
 $conf['reverse_proxy_header'] = 'HTTP_X_FORWARDED_FOR';
