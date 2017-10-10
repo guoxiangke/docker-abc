@@ -586,5 +586,5 @@ $conf['reverse_proxy'] = TRUE;
 // $base_url = 'https://abc.yongbuzhixi.com';
 $base_url = 'https://www.abc-chinaedu.com';
 // $base_url = 'https://abc-chinaedu.com';
-$conf['reverse_proxy_addresses'] = array('172.17.0.7');
+$conf['reverse_proxy_addresses'] = array('web');
 $conf['reverse_proxy_header'] = 'HTTP_X_FORWARDED_FOR';
