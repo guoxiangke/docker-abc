@@ -218,9 +218,9 @@ $databases = array (
     'default' => 
     array (
       'database' => 'abc',
-      'username' => 'abc',
-      'password' => 'abc',
-      'host' => 'db',
+      'username' => 'mysqluser',
+      'password' => 'mysqluser',
+      'host' => '192.168.0.5',
       'port' => '',
       'driver' => 'mysql',
       'prefix' => '',
@@ -581,10 +581,7 @@ $conf['404_fast_html'] = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
 # $conf['allow_authorize_operations'] = FALSE;
 // https://stackoverflow.com/questions/36222254/drupal-mixed-content-error-when-using-ssl-certificate
 $conf['reverse_proxy'] = TRUE;
-// $base_url = 'https://'.$_SERVER['SERVER_NAME'];
-// $base_url = 'https://abc.vultr.yongbuzhixi.com';
-// $base_url = 'https://abc.yongbuzhixi.com';
-$base_url = 'https://www.abc-chinaedu.com';
+$base_url = 'https://abc.yongbuzhixi.com';
 // $base_url = 'https://abc-chinaedu.com';
 $conf['reverse_proxy_addresses'] = array('web');
 $conf['reverse_proxy_header'] = 'HTTP_X_FORWARDED_FOR';
