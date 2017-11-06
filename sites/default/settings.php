@@ -583,5 +583,5 @@ $conf['404_fast_html'] = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
 $conf['reverse_proxy'] = TRUE;
 $base_url = 'https://abc.yongbuzhixi.com';
 // $base_url = 'https://abc-chinaedu.com';
-$conf['reverse_proxy_addresses'] = array('nginx','172.17.0.2');
+$conf['reverse_proxy_addresses'] = array('172.17.0.16');
 $conf['reverse_proxy_header'] = 'HTTP_X_FORWARDED_FOR';
